@@ -8,7 +8,13 @@ final _walletSignerProvider = Provider.autoDispose((ref) {
   final addressNotifier = ref.watch(addressNotifierProvider);
   final walletAuth = ref.watch(walletAuthProvider.notifier);
 
-  return WalletSigner(addressNotifier, walletAuth);
+  void Function()? closeSession;
+  final signer = WalletSigner(addressNotifier, walletAuth,
+    onSessionStart: () { closeSession ??= ref.keepAlive().close; },
+    onSessionEnd: () { closeSession?.call(); closeSession = null; },
+  );
+  ref.onDispose(signer.dispose);
+  return signer;
 });
 
 final walletServiceProvider = Provider.autoDispose((ref) {

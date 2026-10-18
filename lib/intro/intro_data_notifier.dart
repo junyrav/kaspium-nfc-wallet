@@ -14,6 +14,8 @@ String _computeSeed(({String mnemonic, String passphrase}) data) {
 class IntroDataNotifier extends StateNotifier<IntroData> {
   IntroDataNotifier() : super(const IntroData());
 
+  bool nfcWallet = false;
+
   bool get isSeedGenerated => state.generated;
   bool get skipPassword => state.kpub != null;
 
@@ -90,6 +92,7 @@ class IntroDataNotifier extends StateNotifier<IntroData> {
   }
 
   void clear() {
+    nfcWallet = false;
     state = const IntroData();
   }
 }

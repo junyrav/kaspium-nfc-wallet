@@ -127,13 +127,15 @@ sealed class WalletInfo with _$WalletInfo {
   factory WalletInfo.fromJson(Map<String, dynamic> json) =>
       _$WalletInfoFromJson(json);
 
+  bool get isNfc => wid.startsWith('nfc-v1-');
+
   bool get isViewOnly => kind.isViewOnly;
 
   bool get isLegacy => kind.isLegacy;
 
   bool get hasValidKpub => !kind.isLegacy;
 
-  bool get canSetPassword => !kind.isViewOnly;
+  bool get canSetPassword => !kind.isViewOnly && !isNfc;
 
   @override
   late final String settingsKey = hash('walletSettingsKey#$wid');
