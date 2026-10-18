@@ -40,8 +40,8 @@ class IntroActionsWidget extends ConsumerWidget {
           PrimaryOutlineButton(title: 'NFC 카드로 복구', onPressed: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const NfcSetupPage(recovery: true)))),
         ],
-        PrimaryButton(title: l10n.newWallet, onPressed: newWallet),
-        PrimaryOutlineButton(title: l10n.importWallet, onPressed: importWallet),
+        PrimaryButton(title: '소프트웨어 지갑 생성', onPressed: newWallet),
+        PrimaryOutlineButton(title: '시드·공개키로 가져오기', onPressed: importWallet),
       ],
     );
   }

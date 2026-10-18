@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -43,6 +44,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
     private var enrollmentExpires = 0L
     private var enrollmentWallet: ByteArray? = null
     private var rebindDaily: ByteArray? = null
+    private var recoveredSeedDigest: ByteArray? = null
     private val timeout = Runnable { fail("TIMEOUT", "카드 대기 시간이 초과되었습니다. 다시 태그하세요.") }
 
     init { channel.setMethodCallHandler(::handle) }
@@ -90,7 +92,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
                 "unlock" -> unlock(call.argument<ByteArray>("wallet") ?: error("wallet required"))
                 "readRecovery" -> readRecovery()
                 "recover" -> recover(call.argument<String>("password") ?: "")
-                "clear" -> { clearEnrollment(); recovery.clear(); finish(null) }
+                "clear" -> { clearEnrollment(); recovery.clear(); recoveredSeedDigest = null; finish(null) }
                 else -> { pending = null; result.notImplemented() }
             }
         }
@@ -127,6 +129,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
         check(BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS) {
             "강한 생체인증을 먼저 등록하세요. PIN으로 대체할 수 없습니다."
         }
+        status("강한 생체인증을 완료하세요")
         main.post {
             if (pending !== expected) return@post
             prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object: BiometricPrompt.AuthenticationCallback() {
@@ -171,8 +174,19 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
         rebinding = call.argument<Boolean>("rebind") == true
         require(seed.size == 64 && wallet.size == 32)
         require(rebinding || password.length >= 12) { "복구 비밀번호는 12자 이상으로 설정하세요" }
+        if (rebinding) {
+            require(recovery.size >= 2 && recovery.values.first().wallet.contentEquals(wallet) &&
+                NfcCardCodec.digest(seed).contentEquals(recoveredSeedDigest)) { "먼저 카드 2장과 비밀번호로 복구하세요" }
+        }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key(wallet)); cipher.updateAAD(wallet)
+        try { cipher.init(Cipher.ENCRYPT_MODE, key(wallet)) }
+        catch (e: KeyPermanentlyInvalidatedException) {
+            if (!rebinding) throw e
+            val alias = "kaspium_nfc_v1_" + wallet.joinToString("") { "%02x".format(it) }
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) }
+            cipher.init(Cipher.ENCRYPT_MODE, key(wallet))
+        }
+        cipher.updateAAD(wallet)
         // Wiped on both authentication cancellation and completion by a separate timeout guard.
         val wipe = Runnable { seed.fill(0) }
         main.postDelayed(wipe, 120000)
@@ -308,6 +322,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
                 b = passwordDecrypt(pair[1].recovery, password, pair[1].wallet + byteArrayOf(pair[1].slot.toByte()))
                 require(a[0].toInt() == pair[0].slot && b[0].toInt() == pair[1].slot)
                 seed = NfcCardCodec.join(a, b)
+                recoveredSeedDigest = NfcCardCodec.digest(seed)
                 finish(mapOf("seed" to seed.copyOf(), "wallet" to pair[0].wallet.copyOf()))
             } finally { a?.fill(0); b?.fill(0); seed?.fill(0) }
         }

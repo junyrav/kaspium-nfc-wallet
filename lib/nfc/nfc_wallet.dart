@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 class NfcWallet {
   static const channel = MethodChannel('kaspa_nfc/v1');
   static final progress = ValueNotifier<String>('');
+  static final awaitingAuthorization = ValueNotifier<bool>(false);
   static bool _initialized = false;
 
   static void initialize() {
@@ -38,12 +39,16 @@ class NfcWallet {
   static Future<Uint8List> unlock(String kpub) async {
     initialize();
     progress.value = 'NFC 카드 1장을 태그한 뒤 생체인증을 완료하세요';
-    final seed = await channel.invokeMethod<Uint8List>(
-        'unlock', {'wallet': fingerprint(kpub)});
-    if (seed == null || seed.length != 64) {
-      throw StateError('Invalid NFC seed');
-    }
-    return seed;
+    awaitingAuthorization.value = true;
+    try {
+      final seed = await channel.invokeMethod<Uint8List>(
+          'unlock', {'wallet': fingerprint(kpub)});
+      if (seed == null || seed.length != 64) {
+        throw StateError('Invalid NFC seed');
+      }
+      progress.value = '거래 서명 중...';
+      return seed;
+    } finally { awaitingAuthorization.value = false; }
   }
 
   static Future<int> readRecovery() async {

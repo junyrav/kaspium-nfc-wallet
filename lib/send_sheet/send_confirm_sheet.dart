@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import '../app_providers.dart';
 import '../app_router.dart';
+import '../nfc/nfc_wallet.dart';
 import '../fee/fee_sheet.dart';
 import '../kaspa/kaspa.dart';
 import '../l10n/l10n.dart';
@@ -65,6 +66,16 @@ class SendConfirmSheet extends HookConsumerWidget {
           ref.read(walletProvider).isNfc
               ? 'NFC 카드 1장을 태그한 뒤 생체인증을 완료하세요.'
               : l10n.sendTxProgressDescription,
+          contentWidget: ref.read(walletProvider).isNfc
+              ? Column(mainAxisSize: MainAxisSize.min, children: [
+                  ValueListenableBuilder<String>(valueListenable: NfcWallet.progress,
+                    builder: (_, value, child) => Text(value)),
+                  ValueListenableBuilder<bool>(valueListenable: NfcWallet.awaitingAuthorization,
+                    builder: (_, pending, child) => pending
+                        ? TextButton(onPressed: NfcWallet.cancel, child: const Text('취소'))
+                        : const SizedBox.shrink()),
+                ])
+              : null,
         );
 
         final txId = await walletService.sendTransaction(tx.tx, rbf: rbf);
