@@ -71,6 +71,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
         }
     }
     private fun runWork(expected: MethodChannel.Result? = pending, block: () -> Unit) {
+        if (expected == null || pending !== expected || worker.isShutdown) return
         worker.execute {
             if (expected == null || pending !== expected) return@execute
             workResult.set(expected)
@@ -82,7 +83,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
         if (call.method == "cancel") { cancel(); result.success(null); return }
         if (pending != null) { result.error("BUSY", "진행 중인 작업을 완료하세요", null); return }
         pending = result
-        try {
+        runWork(result) {
             when (call.method) {
                 "begin" -> begin(call)
                 "write" -> write(call.argument<Int>("slot") ?: 0)
@@ -92,7 +93,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
                 "clear" -> { clearEnrollment(); recovery.clear(); finish(null) }
                 else -> { pending = null; result.notImplemented() }
             }
-        } catch (e: Exception) { fail("NFC_ERROR", e.message ?: "NFC 작업 실패") }
+        }
     }
     fun cancel() {
         val result = pending; pending = null
@@ -202,7 +203,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
             if (pending !== expected) return@post
             main.postDelayed(timeout, 45000)
             nfc.enableReaderMode(activity, { tag ->
-                main.post { nfc.disableReaderMode(activity); main.removeCallbacks(timeout) }
+                main.post { if (pending === expected) { nfc.disableReaderMode(activity); main.removeCallbacks(timeout) } }
                 runWork(expected) { operation(tag) }
             }, NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, Bundle())
         }
@@ -240,6 +241,9 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
                 val record = if (rebinding) {
                     val old = rebindRecords[uid] ?: NfcCardCodec.decode(before)
                     require(old.wallet.contentEquals(enrollmentWallet)) { "복구한 지갑의 카드만 다시 등록할 수 있습니다" }
+                    require(old.recovery.contentEquals(recovery[old.slot]?.recovery)) {
+                        "복구에 사용한 카드 2장을 다시 태그하세요"
+                    }
                     require(!written.containsKey(old.slot)) { "이미 등록한 카드입니다" }
                     rebindRecords[uid] = old
                     old.copy(daily = rebindDaily ?: error("등록 정보 없음"))
