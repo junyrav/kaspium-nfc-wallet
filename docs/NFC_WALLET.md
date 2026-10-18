@@ -17,7 +17,8 @@ installation alongside Kaspium and the earlier NFC prototype.
 - **NFC 카드로 복구**: read two different slots of the same wallet, enter the
   recovery password, reconstruct and verify the HD public key, then authenticate
   and register the two recovered cards with this phone. Their original recovery
-  shares are preserved. The third original card remains usable for recovery;
+  shares are preserved. Recovery parsing tolerates an interrupted daily-ciphertext
+  update; the password-protected share is still authenticated by AES-GCM before use. The third original card remains usable for recovery;
   its daily-use ciphertext is still bound to the old phone.
 
 ## Storage and format

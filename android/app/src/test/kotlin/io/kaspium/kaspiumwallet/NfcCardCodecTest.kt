@@ -39,4 +39,15 @@ class NfcCardCodecTest {
             NfcCardCodec.encode(NfcCardCodec.Record(4, ByteArray(32), ByteArray(92), ByteArray(109)))
         }
     }
+    @Test fun recoveryCanReadSharesWhenDailyRebindingWasInterrupted() {
+        val record = NfcCardCodec.Record(1, ByteArray(32), ByteArray(92), ByteArray(109) { it.toByte() })
+        val interrupted = NfcCardCodec.encode(record)
+        interrupted[50] = 1
+        assertThrows(IllegalArgumentException::class.java) { NfcCardCodec.decode(interrupted) }
+        val recovered = NfcCardCodec.decode(interrupted, verifyChecksum = false)
+        assertArrayEquals(record.recovery, recovered.recovery)
+        assertArrayEquals(record.wallet, recovered.wallet)
+        assertEquals(record.slot, recovered.slot)
+    }
+
 }

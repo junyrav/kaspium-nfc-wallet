@@ -20,11 +20,13 @@ internal object NfcCardCodec {
         digest(out.copyOfRange(0, SIZE - 32)).copyInto(out, SIZE - 32)
         return out
     }
-    fun decode(data: ByteArray): Record {
+    fun decode(data: ByteArray, verifyChecksum: Boolean = true): Record {
         require(data.size == SIZE && data.copyOfRange(0, 4).contentEquals(magic)) {
             "새 Kaspa NFC Wallet 카드가 아닙니다. 이전 앱 카드는 호환되지 않습니다."
         }
-        require(MessageDigest.isEqual(digest(data.copyOfRange(0, SIZE - 32)), data.copyOfRange(SIZE - 32, SIZE))) {
+        // Recovery authenticates the share with AES-GCM after password entry. It
+        // must survive an interrupted daily-ciphertext update on a recovered card.
+        require(!verifyChecksum || MessageDigest.isEqual(digest(data.copyOfRange(0, SIZE - 32)), data.copyOfRange(SIZE - 32, SIZE))) {
             "카드 데이터 검증 실패"
         }
         val slot = data[4].toInt()

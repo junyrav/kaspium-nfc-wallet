@@ -253,7 +253,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
             val writtenSlot = card(tag, "카드 쓰는 중") { card ->
                 val before = read(card)
                 val record = if (rebinding) {
-                    val old = rebindRecords[uid] ?: NfcCardCodec.decode(before)
+                    val old = rebindRecords[uid] ?: NfcCardCodec.decode(before, verifyChecksum = false)
                     require(old.wallet.contentEquals(enrollmentWallet)) { "복구한 지갑의 카드만 다시 등록할 수 있습니다" }
                     require(old.recovery.contentEquals(recovery[old.slot]?.recovery)) {
                         "복구에 사용한 카드 2장을 다시 태그하세요"
@@ -305,7 +305,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
     }
     private fun readRecovery() {
         scan { tag ->
-            val record = card(tag, "복구 카드 읽는 중") { NfcCardCodec.decode(read(it)) }
+            val record = card(tag, "복구 카드 읽는 중") { NfcCardCodec.decode(read(it), verifyChecksum = false) }
             require(recovery.isEmpty() || recovery.values.first().wallet.contentEquals(record.wallet)) { "서로 다른 지갑의 카드입니다" }
             require(!recovery.containsKey(record.slot)) { "서로 다른 카드 2장이 필요합니다" }
             recovery[record.slot] = record
