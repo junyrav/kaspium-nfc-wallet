@@ -18,6 +18,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.security.KeyStore
 import java.security.SecureRandom
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -210,6 +211,7 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
         }
     }
     private fun scan(operation: (Tag) -> Unit) {
+        val claimed = AtomicBoolean(false)
         val expected = workResult.get() ?: pending
         val nfc = adapter ?: error("이 기기는 NFC를 지원하지 않습니다")
         check(nfc.isEnabled) { "NFC를 켜주세요" }
@@ -217,8 +219,10 @@ internal class NfcWalletBridge(private val activity: FlutterFragmentActivity, pr
             if (pending !== expected) return@post
             main.postDelayed(timeout, 45000)
             nfc.enableReaderMode(activity, { tag ->
-                main.post { if (pending === expected) { nfc.disableReaderMode(activity); main.removeCallbacks(timeout) } }
-                runWork(expected) { operation(tag) }
+                if (claimed.compareAndSet(false, true)) {
+                    main.post { if (pending === expected) { nfc.disableReaderMode(activity); main.removeCallbacks(timeout) } }
+                    runWork(expected) { operation(tag) }
+                }
             }, NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, Bundle())
         }
     }
