@@ -70,6 +70,7 @@ class SetupWalletScreen extends HookConsumerWidget {
     Future<void> setupWallet() async {
       try {
         setupFailed.value = false;
+        final isNfc = ref.read(introDataProvider.notifier).nfcWallet;
         final introData = ref.read(introDataProvider);
         ref.read(introDataProvider.notifier).clear();
 
@@ -77,7 +78,7 @@ class SetupWalletScreen extends HookConsumerWidget {
 
         final WalletData walletData;
         if (introData.kpub case final kpub?) {
-          final walletKind = WalletKind.localHdSchnorr(viewOnly: true);
+          final walletKind = WalletKind.localHdSchnorr(viewOnly: !isNfc);
           walletData = .kpub(
             name: introData.name ?? l10n.defaultWalletName,
             kind: walletKind,
@@ -110,7 +111,7 @@ class SetupWalletScreen extends HookConsumerWidget {
         final network = ref.read(networkProvider);
         final networkId = ref.read(networkIdProvider);
         final notifier = ref.read(walletBundleProvider.notifier);
-        final wallet = await notifier.setupWallet(walletData);
+        final wallet = await notifier.setupWallet(walletData, nfc: isNfc);
         await notifier.selectWallet(wallet, networkId);
 
         final auth = ref.read(walletAuthNotifierProvider);

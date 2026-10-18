@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.kaspium.kaspiumwallet"
+        applicationId = "com.junyrav.kaspanfc"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 28 // Android 9.0 // flutter.minSdkVersion
@@ -41,16 +41,18 @@ android {
 
     signingConfigs {
         create("release") {
+            if (keystorePropertiesFile.exists()) {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
             storeFile = keystoreProperties["storeFile"]?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName(if (keystorePropertiesFile.exists()) "release" else "debug")
         }
     }
 }
@@ -63,4 +65,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("androidx.biometric:biometric:1.1.0")
+    testImplementation("junit:junit:4.13.2")
 }

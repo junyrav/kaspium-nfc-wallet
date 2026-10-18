@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app_router.dart';
+import '../nfc/nfc_setup_page.dart';
+import 'package:flutter/foundation.dart';
 import '../l10n/l10n.dart';
 import '../util/ui_util.dart';
 import '../widgets/action_buttons_wrapper.dart';
@@ -32,6 +34,12 @@ class IntroActionsWidget extends ConsumerWidget {
 
     return ActionButtonsWrapper(
       buttons: [
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+          PrimaryButton(title: 'NFC 지갑 생성', onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NfcSetupPage()))),
+          PrimaryOutlineButton(title: 'NFC 카드로 복구', onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const NfcSetupPage(recovery: true)))),
+        ],
         PrimaryButton(title: l10n.newWallet, onPressed: newWallet),
         PrimaryOutlineButton(title: l10n.importWallet, onPressed: importWallet),
       ],

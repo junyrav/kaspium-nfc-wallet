@@ -96,7 +96,13 @@ class WalletService {
   Future<String> sendTransaction(RawTransaction tx, {bool rbf = false}) async {
     _validateFee(tx);
 
-    await _signTransaction(tx);
+    final session = signer is SigningSession ? signer as SigningSession : null;
+    try {
+      await session?.beginSigning();
+      await _signTransaction(tx);
+    } finally {
+      session?.endSigning();
+    }
 
     if (rbf) {
       final result = await rpc.submitTransactionReplacement(tx);
@@ -140,8 +146,13 @@ class WalletService {
     }
 
     final hash = hashPersonalMessage(message);
-    final signature = await signer.sign(hash, address);
-
-    return (signature: signature.hex, hash: hash.hex);
+    final session = signer is SigningSession ? signer as SigningSession : null;
+    try {
+      await session?.beginSigning();
+      final signature = await signer.sign(hash, address);
+      return (signature: signature.hex, hash: hash.hex);
+    } finally {
+      session?.endSigning();
+    }
   }
 }

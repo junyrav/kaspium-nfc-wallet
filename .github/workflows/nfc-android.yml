@@ -1,0 +1,37 @@
+name: NFC Android preview
+on:
+  push:
+    branches: [main, 'nfc/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze NFC integration
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/nfc lib/wallet_signer lib/kaspa/wallet_service lib/intro/intro_actions_widget.dart lib/screens/setup_wallet_screen.dart lib/send_sheet/send_confirm_sheet.dart test/nfc_signing_session_test.dart
+      - name: Test signing authorization boundaries
+        run: flutter test test/nfc_signing_session_test.dart
+      - name: Build Android preview
+        run: flutter build apk --debug
+      - name: Test card format and recovery shares
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kaspa-NFC-Wallet-Kaspium-Preview
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

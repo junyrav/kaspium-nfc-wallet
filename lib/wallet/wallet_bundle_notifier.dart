@@ -82,8 +82,14 @@ class WalletBundleNotifier extends StateNotifier<WalletBundle> {
     );
   }
 
-  Future<WalletInfo> setupWallet(WalletData walletData) async {
-    final wallet = generateWalletInfo(walletData);
+  Future<WalletInfo> setupWallet(WalletData walletData, {bool nfc = false}) async {
+    var wallet = generateWalletInfo(walletData);
+    if (nfc) {
+      if (walletData.map(seed: (_) => true, kpub: (_) => false)) {
+        throw StateError('NFC wallets must not persist a seed');
+      }
+      wallet = wallet.copyWith(wid: 'nfc-v1-${wallet.wid}');
+    }
 
     await walletData.mapOrNull(seed: (data) async {
       final walletVault = WalletVault(wallet.wid, repository.vault);
